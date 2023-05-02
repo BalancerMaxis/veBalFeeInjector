@@ -154,7 +154,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
   }
 
   modifier onlyKeeperRegistry() {
-    if (msg.sender != keeperRegistry) {
+    if (msg.sender != keeperRegistry && msg.sender != owner) {
       require(false, "Only the Registry can do that");
     }
     _;
