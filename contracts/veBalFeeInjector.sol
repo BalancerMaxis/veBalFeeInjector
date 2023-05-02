@@ -61,12 +61,24 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
   }
 
 
-    function performUpkeep(bytes calldata performData) external  onlyKeeperRegistry whenNotPaused {
-
-    payFees();
+  function performUpkeep(bytes calldata performData) external  onlyKeeperRegistry whenNotPaused {
+    bool upkeepNeeded;
+    for(uint i=0; i<managedTokens.length; i++){
+      if (managedTokens[i].balanceOf(address(this)) > 0){
+        upkeepNeeded = true;
+      }
+      if (lastRunTimeCurser >= feeDistributor.getTimeCursor()) { //Not time yet
+        upkeepNeeded = false;
+      }
+    }
+    require(upkeepNeeded, "Not ready");
+    _payFees();
   }
 
-  function payFees() internal  whenNotPaused {
+  function payFees() external onlyOwner whenNotPaused {
+    _payFees();
+  }
+  function _payFees() internal  whenNotPaused {
     uint256 timeCurser = feeDistributor.getTimeCursor();
     require(lastRunTimeCurser < timeCurser, "TimeCurser hasn't changed.  Already ran once this epoch.");
     IERC20[] memory tokens = managedTokens;
@@ -154,7 +166,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
   }
 
   modifier onlyKeeperRegistry() {
-    if (msg.sender != keeperRegistry && msg.sender != owner) {
+    if (msg.sender != keeperRegistry && msg.sender != owner()) {
       require(false, "Only the Registry can do that");
     }
     _;

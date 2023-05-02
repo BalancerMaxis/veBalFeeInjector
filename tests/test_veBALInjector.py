@@ -16,7 +16,8 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     assert injector.half(), "Half is false, should be true on first run"
     (ready, foo) = injector.checkUpkeep(0)
     assert ready is False, "Injector shows ready with 0 balances"
-    injector.performUpkeep(0, {"from": keeper})
+    with brownie.reverts("Not ready"):
+        injector.performUpkeep(0, {"from": keeper})
     bal.transfer(injector, bal_amount, {"from": owner})
     usd.transfer(injector, usd_amount, {"from": owner})
     (ready, foo) = injector.checkUpkeep(0)
@@ -27,7 +28,7 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     assert injector.half() is False, "Half was not flipped after payment"
     (ready, foo) = injector.checkUpkeep(0, )
     assert ready is False, "Injector shows ready directly after run"
-    with brownie.reverts("TimeCurser hasn't changed.  Already ran once this epoch."):
+    with brownie.reverts("Not ready"):
         injector.performUpkeep(0, {"from": keeper})
     chain.mine()
     chain.sleep(injector.lastRunTimeCurser() + 100 - chain.time())
@@ -45,5 +46,5 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     usd.transfer(injector, usd_amount, {"from": owner})
     (ready, foo) = injector.checkUpkeep(0)
     assert ready is False, "Injector shows ready directly after first run."
-    with brownie.reverts("TimeCurser hasn't changed.  Already ran once this epoch."):
+    with brownie.reverts("Not ready"):
         injector.performUpkeep(0, {"from": keeper})
