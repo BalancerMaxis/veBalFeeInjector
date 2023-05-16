@@ -2,6 +2,8 @@
 src = 'contracts'
 out = 'out'
 libs = ['node_modules', 'lib']
+test = 'tests/foundry'
+
 cache_path = 'forge-cache'
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
