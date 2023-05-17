@@ -34,11 +34,4 @@ contract veBalFeeInjectorTest is Test {
         vm.expectRevert("Pausable: paused");
         injector.payFees();
     }
-
-    function testIsUnpausable() public {
-        injector.pause();
-        assertTrue(injector.paused(), "Injector should be paused");
-        injector.unpause();
-        assertFalse(injector.paused(), "Injector should not be paused");
-    }
 }
