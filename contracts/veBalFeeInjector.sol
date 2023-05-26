@@ -165,6 +165,10 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     _unpause();
   }
 
+   function pause() external onlyOwner {
+    _pause();
+  }
+
   modifier onlyKeeperRegistry() {
     if (msg.sender != keeperRegistry && msg.sender != owner()) {
       require(false, "Only the Registry can do that");
