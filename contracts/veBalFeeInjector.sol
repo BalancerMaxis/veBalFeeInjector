@@ -11,8 +11,12 @@ import "./interfaces.sol";
 
 /**
  * @title veBal fees injector
- * @author 0xtritum.eth
- * @notice Chainlink automation compatable smart contract to handle streaming of fees to veBAL.
+ * @author 0xtritium.eth
+ * @notice Chainlink automation compatible smart contract to handle streaming of fees to veBAL. https://docs.chain.link/chainlink-automation/register-upkeep#register-an-upkeep-using-your-own-deployed-contract
+ * @notice Each 2 weeks fees are processed, there is USD and BAL that needs to be dripped into the veBAL fee distributor over 2 weekly injections.
+ * @notice This smart contract handles paying in these fees.  It is build such that it receives new funds every 2 weeks after both runs (rendering it empty)
+ * @notice New funds should be sent in when Half is true.  Then half will be paid the first run and the rest wll be paid the second run.
+ * @notice There are a number of management functions to allow the owner to sweep tokens and/or change how things work.
  */
 contract veBalFeeInjector is ConfirmedOwner, Pausable {
   event keeperRegistryUpdated(address oldAddress, address newAddress);
@@ -43,7 +47,9 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
 
   /*
    * @notice Get list of addresses that are underfunded and return keeper-compatible payload
-   * @return upkeepNeeded signals if upkeep is needed, performData is an abi encoded list of addresses that need funds
+   * @param calldata Required by chainlink interface but unused, can set to 0 or anything
+   * @return upkeepNeeded signals if upkeep is needed, performData is an abi encoded list of addresses that need injection
+   * @return emptyBytes perform data required by chainlink interfaces but unused in this contract
    */
   function checkUpkeep(bytes calldata)
     external
@@ -62,7 +68,12 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     return (upkeepNeeded, emptyBytes);
   }
 
-
+  /*
+   * @notice Injects new veBAL
+   * @param performData required by chainlink keeper interface but not used in this contract, can be 0x0 or anything else.
+   * @return upkeepNeeded signals if upkeep is needed
+   *
+   */
   function performUpkeep(bytes calldata performData) external  onlyKeeperRegistry whenNotPaused {
     bool upkeepNeeded;
     for(uint i=0; i<managedTokens.length; i++){
@@ -77,9 +88,18 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     _payFees();
   }
 
+  /*
+   * @notice Allows the owner to directly trigger a run.
+   *
+   */
   function payFees() external onlyOwner whenNotPaused {
     _payFees();
   }
+
+   /*
+   * @notice Inject fees into veBAL distributor based on token balances and half, assuming it is past the end of the last epoch.
+   *
+   */
   function _payFees() internal  whenNotPaused {
     uint256 timeCurser = feeDistributor.getTimeCursor();
     require(lastRunTimeCurser < timeCurser, "TimeCurser hasn't changed.  Already ran once this epoch.");
@@ -147,6 +167,9 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     managedTokens = tokens;
   }
 
+  /*
+  * @notice Gets a list of tokens managed/watched by the injector
+  */
   function getTokens() public view returns (address[] memory) {
     IERC20[] memory tokens = managedTokens;
     address[] memory addresses = new address[](tokens.length);
@@ -171,6 +194,9 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     _unpause();
   }
 
+    /**
+   * @notice Pause the contract, preventing any payment of fees into the distributor but still allowing sweeps
+   */
    function pause() external onlyOwner {
     _pause();
   }
