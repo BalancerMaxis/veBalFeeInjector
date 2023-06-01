@@ -158,11 +158,11 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     require(tokens.length >= 1, "Must provide at least once token");
     IERC20[] memory oldTokens = managedTokens;
     for(uint i=0; i<oldTokens.length; i++){
-      SafeERC20.safeApprove(oldTokens[i], address(feeDistributor), 0);
+      SafeERC20.safeDecreaseAllowance(oldTokens[i], address(feeDistributor), 0);
   }
     emit tokensSet(tokens);
     for(uint i=0; i < tokens.length; i++){
-      SafeERC20.safeApprove(tokens[i],address(feeDistributor), 2**128);
+      SafeERC20.safeIncreaseAllowance(tokens[i],address(feeDistributor), 2**128);
     }
     managedTokens = tokens;
   }
