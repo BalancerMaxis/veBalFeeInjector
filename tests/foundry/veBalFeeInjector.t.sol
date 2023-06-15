@@ -51,7 +51,7 @@ contract veBalFeeInjectorTest is Test {
         injector.payFees();
         for (uint i = 0; i < injector.getTokens().length; i++) {
             assertTrue(injector.getTokens()[i] == address(newManagedTokens[i]), "Tokens should be the same");
-            assertEq(newManagedTokens[i].balanceOf(address(injector)), toMint/2, "Balance should be 0");
+            assertEq(newManagedTokens[i].balanceOf(address(injector)), toMint/2, "Balance should be half of toMint");
         }
     }
 
@@ -69,7 +69,7 @@ contract veBalFeeInjectorTest is Test {
         injector.payFees();
         for (uint i = 0; i < injector.getTokens().length; i++) {
             assertTrue(injector.getTokens()[i] == address(newManagedTokens[i]), "Tokens should be the same");
-            assertEq(newManagedTokens[i].balanceOf(address(injector)), toMint/2, "Balance should be 0");
+            assertEq(newManagedTokens[i].balanceOf(address(injector)), toMint/2, "Balance should be half of toMint");
         }
     }
 
@@ -89,7 +89,7 @@ contract veBalFeeInjectorTest is Test {
         injector.payFees();
         for (uint i = 0; i < injector.getTokens().length; i++) {
             assertTrue(injector.getTokens()[i] == address(newManagedTokens[i]), "Tokens should be the same");
-            assertEq(newManagedTokens[i].balanceOf(address(injector)), toMint/2, "Balance should be 0");
+            assertEq(newManagedTokens[i].balanceOf(address(injector)), toMint/2, "Balance should be half of toMint");
         }
     }
 
