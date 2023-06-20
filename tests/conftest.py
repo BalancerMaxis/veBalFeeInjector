@@ -78,6 +78,7 @@ def deploy(caller, feeDistributor, bal, usd, whale, owner, keeper):
         keeper,
         feeDistributor,
         [bal, usd],
+        100,
         {"from": caller}
     )
     helper.transferOwnership(owner, {"from": caller})

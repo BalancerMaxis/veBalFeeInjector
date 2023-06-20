@@ -19,18 +19,20 @@ import "./interfaces.sol";
  * @notice There are a number of management functions to allow the owner to sweep tokens and/or change how things work.
  */
 contract veBalFeeInjector is ConfirmedOwner, Pausable {
-  event keeperRegistryUpdated(address oldAddress, address newAddress);
+  event KeeperRegistryUpdated(address oldAddress, address newAddress);
   event ERC20Swept(address indexed token, address payee, uint256 amount);
-  event tokensSet(IERC20[] tokens);
-  event feesPaid(IERC20[] tokens, uint256[] amounts, uint256 timeCurser, bool half);
+  event TokensSet(IERC20[] tokens);
+  event FeesPaid(IERC20[] tokens, uint256[] amounts, uint256 timeCurser, bool half);
+  event MinAmountSet(uint256 minAmount);
 
   address public  keeperRegistry;
-  uint256 public lastRunTimeCurser;
+  uint256 public LastRunTimeCurser;
   IERC20[] public managedTokens;
   bool public half;
   IFeeDistributor public feeDistributor;
   bytes constant emptyBytes  = bytes("");
-
+  // to minimize changes after review, using a single minamount of all tokens, next version should support min amounts per tokens
+  uint256 public MinAmount;
 
 
     /**
@@ -38,7 +40,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
    * @param _feeDistributor The address of the veBAL fee distributor
    * @param _tokens A list of tokens to handle.
    */
-  constructor(address _keeperRegistry, address _feeDistributor, IERC20[] memory _tokens) ConfirmedOwner(msg.sender)  {
+  constructor(address _keeperRegistry, address _feeDistributor, IERC20[] memory _tokens, uint256 minAmount) ConfirmedOwner(msg.sender)  {
     setKeeperRegistry(_keeperRegistry);
     feeDistributor = IFeeDistributor(_feeDistributor);
     setTokens(_tokens);
@@ -57,15 +59,17 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     whenNotPaused
     returns (bool upkeepNeeded, bytes memory performData)
   {
+    int counter = 0;
     for(uint i=0; i<managedTokens.length; i++){
-      if (managedTokens[i].balanceOf(address(this)) > 0){
-        upkeepNeeded = true;
+      if (managedTokens[i].balanceOf(address(this)) > MinAmount){
+        counter++;
       }
-      if (lastRunTimeCurser >= feeDistributor.getTimeCursor()) { //Not time yet
-        upkeepNeeded = false;
+      if (LastRunTimeCurser >= feeDistributor.getTimeCursor()) { //Not time yet
+        // ensure that counter can never match managedTokens.length if the above is not true
+        counter--;
       }
     }
-    return (upkeepNeeded, emptyBytes);
+    return (counter == int256(managedTokens.length), emptyBytes);
   }
 
   /*
@@ -75,16 +79,16 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
    *
    */
   function performUpkeep(bytes calldata performData) external  onlyKeeperRegistry whenNotPaused {
-    bool upkeepNeeded;
+    uint256 timeCursor = feeDistributor.getTimeCursor();
+    require(LastRunTimeCurser < timeCursor, "Not ready");
+
+    int counter = 0;
     for(uint i=0; i<managedTokens.length; i++){
-      if (managedTokens[i].balanceOf(address(this)) > 0){
-        upkeepNeeded = true;
-      }
-      if (lastRunTimeCurser >= feeDistributor.getTimeCursor()) { //Not time yet
-        upkeepNeeded = false;
+      if (managedTokens[i].balanceOf(address(this)) > MinAmount){
+        counter++;
       }
     }
-    require(upkeepNeeded, "Not ready");
+    require(counter == int256(managedTokens.length), "Not ready");
     _payFees();
   }
 
@@ -96,13 +100,19 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     _payFees();
   }
 
+
+  // checking for both tokens, minimum amounts in both check and perform
+  // minimum tokens amounts
+  //
+
+
+
    /*
    * @notice Inject fees into veBAL distributor based on token balances and half, assuming it is past the end of the last epoch.
    *
    */
   function _payFees() internal  whenNotPaused {
     uint256 timeCurser = feeDistributor.getTimeCursor();
-    require(lastRunTimeCurser < timeCurser, "TimeCurser hasn't changed.  Already ran once this epoch.");
     IERC20[] memory tokens = managedTokens;
     bool didSomething;
     uint256[] memory amounts = new uint256[](tokens.length);
@@ -120,9 +130,9 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     }
     if(didSomething){
       feeDistributor.depositTokens(managedTokens, amounts);
-      emit feesPaid(tokens, amounts, timeCurser, half);
+      emit FeesPaid(tokens, amounts, timeCurser, half);
       half = !half;
-      lastRunTimeCurser = timeCurser;
+      LastRunTimeCurser = timeCurser;
     }
   }
 
@@ -160,11 +170,19 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     for(uint i=0; i<oldTokens.length; i++){
       SafeERC20.safeApprove(oldTokens[i], address(feeDistributor), 0);
   }
-    emit tokensSet(tokens);
+    emit TokensSet(tokens);
     for(uint i=0; i < tokens.length; i++){
       SafeERC20.safeApprove(tokens[i],address(feeDistributor), 2**128);
     }
     managedTokens = tokens;
+  }
+
+  /**
+  * @notice Set the global minimum amount that all tokens must have in order for upkeep to run
+  * @param minAmount the minimum amount for each token
+  */
+  function setMinAmount(uint256 minAmount) public onlyOwner {
+    MinAmount = minAmount;
   }
 
   /*
@@ -183,7 +201,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
    * @notice Sets the keeper registry address
    */
   function setKeeperRegistry(address _keeperRegistry) public onlyOwner {
-    emit keeperRegistryUpdated(keeperRegistry, _keeperRegistry);
+    emit KeeperRegistryUpdated(keeperRegistry, _keeperRegistry);
     keeperRegistry = _keeperRegistry;
   }
 

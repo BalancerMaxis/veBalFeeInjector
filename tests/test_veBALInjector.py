@@ -31,7 +31,7 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     with brownie.reverts("Not ready"):
         injector.performUpkeep(0, {"from": keeper})
     chain.mine()
-    chain.sleep(injector.lastRunTimeCurser() + 100 - chain.time())
+    chain.sleep(injector.LastRunTimeCurser() + 100 - chain.time())
     chain.mine()
     feeDistributor.checkpointTokens(injector.getTokens(), {"from": keeper})
     feeDistributor.checkpoint({"from": keeper})
