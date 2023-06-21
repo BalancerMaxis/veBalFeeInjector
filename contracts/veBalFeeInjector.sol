@@ -106,7 +106,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
    * @notice Inject fees into veBAL distributor based on token balances and half, assuming it is past the end of the last epoch.
    *
    */
-  function _payFees() internal  whenNotPaused {
+  function _payFees() internal  {
     uint256 timeCurser = feeDistributor.getTimeCursor();
     IERC20[] memory tokens = managedTokens;
     bool didSomething;
@@ -175,7 +175,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
   /**
   * @notice Set the global minimum amount that all tokens must have in order for upkeep to run
   * @param minAmount the minimum amount for each token
-  * @notice NOTE: this is in whole numbers. it adjust for decimals.
+  * @notice NOTE: this is in whole numbers, it is not adjusted for decimals
   */
   function setMinAmount(uint256 minAmount) public onlyOwner {
     MinAmount = minAmount;
