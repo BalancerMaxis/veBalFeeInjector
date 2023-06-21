@@ -6,6 +6,7 @@ import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./interfaces.sol";
 
 
@@ -45,6 +46,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     feeDistributor = IFeeDistributor(_feeDistributor);
     setTokens(_tokens);
     half = true; // half on first run
+    MinAmount = minAmount;
   }
 
   /*
@@ -61,7 +63,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
   {
     int counter = 0;
     for(uint i=0; i<managedTokens.length; i++){
-      if (managedTokens[i].balanceOf(address(this)) > MinAmount){
+      if (managedTokens[i].balanceOf(address(this)) > MinAmount * 10**(IERC20Metadata(address(managedTokens[i])).decimals())){
         counter++;
       }
       if (LastRunTimeCurser >= feeDistributor.getTimeCursor()) { //Not time yet
@@ -84,7 +86,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
 
     int counter = 0;
     for(uint i=0; i<managedTokens.length; i++){
-      if (managedTokens[i].balanceOf(address(this)) > MinAmount){
+      if (managedTokens[i].balanceOf(address(this)) > MinAmount * 10**(IERC20Metadata(address(managedTokens[i])).decimals())){
         counter++;
       }
     }
@@ -99,13 +101,6 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
   function payFees() external onlyOwner whenNotPaused {
     _payFees();
   }
-
-
-  // checking for both tokens, minimum amounts in both check and perform
-  // minimum tokens amounts
-  //
-
-
 
    /*
    * @notice Inject fees into veBAL distributor based on token balances and half, assuming it is past the end of the last epoch.
@@ -180,6 +175,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
   /**
   * @notice Set the global minimum amount that all tokens must have in order for upkeep to run
   * @param minAmount the minimum amount for each token
+  * @notice NOTE: this is in whole numbers. it adjust for decimals.
   */
   function setMinAmount(uint256 minAmount) public onlyOwner {
     MinAmount = minAmount;

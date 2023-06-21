@@ -49,4 +49,15 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     with brownie.reverts("Not ready"):
         injector.performUpkeep(0, {"from": keeper})
 
-
+def test_minAmount(injector, bal, usd, keeper, owner, caller):
+    chain.sleep(60*60*24*8)
+    chain.mine()
+    bal_amount = 499 * 10**18
+    usd_amount = 499 * 10**18
+    bal.transfer(injector, bal_amount, {"from": owner})
+    usd.transfer(injector, usd_amount, {"from": owner})
+    injector.setMinAmount(500,{'from':caller})
+    with brownie.reverts("Not ready"):
+        injector.performUpkeep(0,{'from':keeper})
+    injector.setMinAmount(498,{'from':caller})
+    injector.performUpkeep(0, {'from': keeper})
