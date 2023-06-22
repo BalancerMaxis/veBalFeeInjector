@@ -153,4 +153,28 @@ contract veBalFeeInjectorTest is Test {
         assertFalse(upkeepNeeded);
     }
 
+    function test_AdminPaysFeesTwiceInOneEpochAndBreaksSubsequentDistributions() public {
+        // a recent change allows the contract admin to pay fees twice per epoch. During the call to `payFees` a boolean switch
+        // is reversed. The goal of this boolean switch is to determine whether or not half or all of the contracts balance should be payed
+
+        // Exploit scenario: If the contract admin pays fees twice it is possible for veBAL holders to receive wrong amounts of protocolFees.
+        // the following payout cycle should hold true under normal operating circumstances:
+        // by default half is set to false. Cycle is: Collect fees every 2 weeks, pay fees every week.
+
+        // Week   | BAL BALANCE | BB-A-USD BALANCE | FLAG   | BAL_SHOULD_PAY | BB-A-USD_SHOULD_PAY | REAL_BAL_PAY | REAL_BB-A-USD_PAY
+        // 1      | 100         | 100              | true   | 50             | 50                  | 50           | 50
+        // 2      | 50          | 50               | false  | 50             | 50                  | 50           | 50
+        // new fees come in
+        // 3      | 200         | 200              | true   | 100            | 100                 | 100          | 100
+        // 4      | 100         | 100              | false  | 100            | 100                 | 100          | 100
+
+        // Week   | BAL BALANCE | BB-A-USD BALANCE | FLAG   | BAL_SHOULD_PAY | BB-A-USD_SHOULD_PAY | REAL_BAL_PAY | REAL_BB-A-USD_PAY
+        // 1      | 100         | 100              | true   | 50             | 50                  | 50           | 50
+        // 2      | 50          | 50               | false  | 50             | 50                  | 50           | 50
+        // for whatever reason the admin pays fees again since a recent change allowed for it
+        // new fees come in
+        // 3      | 200         | 200              | false   | 100            | 100                 | 200          | 200
+        // 4      | 0           | 0                | true    | 100            | 100                 | 0            | 0
+    }
+
 }
