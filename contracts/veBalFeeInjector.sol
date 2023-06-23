@@ -90,7 +90,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
         counter++;
       }
     }
-    require(counter == int256(managedTokens.length), "Not ready");
+    require(counter == managedTokens.length, "Not ready");
     _payFees();
   }
 
