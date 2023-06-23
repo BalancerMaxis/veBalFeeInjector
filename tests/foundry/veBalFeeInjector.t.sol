@@ -23,13 +23,14 @@ contract veBalFeeInjectorTest is Test {
         IERC20[] memory managedTokens = new IERC20[](2);
         managedTokens[0] = IERC20(BAL);
         managedTokens[1] = IERC20(WETH);
-        
 
-        injector = new veBalFeeInjector(address(3), feeDistributor, managedTokens);
+        uint256 minAmount = uint256(100);
+
+        injector = new veBalFeeInjector(address(3), feeDistributor, managedTokens, minAmount);
     }
 
     // tests
-    function testIsPausable() public {
+    function test_IsPausable() public {
         assertFalse(injector.paused(), "Injector should not be paused");
         injector.pause();
         assertTrue(injector.paused(), "Injector should be paused");
@@ -38,7 +39,7 @@ contract veBalFeeInjectorTest is Test {
     }
 
     // From deployment BAL & WETH are managed tokens
-    function testSetTokensWithNoNewTokens() public {
+    function test_SetTokensWithNoNewTokens() public {
         IERC20[] memory newManagedTokens = new IERC20[](2);
         newManagedTokens[0] = IERC20(BAL);
         newManagedTokens[1] = IERC20(WETH);
@@ -55,7 +56,7 @@ contract veBalFeeInjectorTest is Test {
         }
     }
 
-    function testSetTokensWithPartialNewTokens() public {
+    function test_SetTokensWithPartialNewTokens() public {
         IERC20[] memory newManagedTokens = new IERC20[](3);
         newManagedTokens[0] = IERC20(BAL);
         newManagedTokens[1] = IERC20(WETH);
@@ -73,7 +74,7 @@ contract veBalFeeInjectorTest is Test {
         }
     }
 
-    function testSetTokensWithAllNewTokens() public {
+    function test_SetTokensWithAllNewTokens() public {
         address bbaUsd = 0xfeBb0bbf162E64fb9D0dfe186E517d84C395f016;
         address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
 
@@ -91,6 +92,88 @@ contract veBalFeeInjectorTest is Test {
             assertTrue(injector.getTokens()[i] == address(newManagedTokens[i]), "Tokens should be the same");
             assertEq(newManagedTokens[i].balanceOf(address(injector)), toMint/2, "Balance should be half of toMint");
         }
+    }
+
+    function test_checkUpkeepAllTokensOverMin() public {
+        address bbaUsd = 0xfeBb0bbf162E64fb9D0dfe186E517d84C395f016;
+        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
+        IERC20[] memory newManagedTokens = new IERC20[](2);
+        newManagedTokens[0] = IERC20(bbaUsd);
+        newManagedTokens[1] = IERC20(dai);
+        injector.setTokens(newManagedTokens);
+
+        (bool upkeepNeeded, ) = injector.checkUpkeep(bytes(""));
+        assertFalse(upkeepNeeded);
+
+        // false due to threshold not met
+        deal(bbaUsd, address(injector), 10);
+        deal(dai, address(injector), 10);
+
+        (upkeepNeeded, ) = injector.checkUpkeep(bytes(""));
+        assertFalse(upkeepNeeded);
+
+
+        // true due to threshold met
+        deal(bbaUsd, address(injector), 200e19);
+        deal(dai, address(injector), 200e19);
+
+        (upkeepNeeded, ) = injector.checkUpkeep(bytes(""));
+        assertTrue(upkeepNeeded);
+    }
+
+        function test_checkUpkeepSomeTokensOverMin() public {
+        
+        address bbaUsd = 0xfeBb0bbf162E64fb9D0dfe186E517d84C395f016;
+        address dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
+        IERC20[] memory newManagedTokens = new IERC20[](2);
+        newManagedTokens[0] = IERC20(bbaUsd);
+        newManagedTokens[1] = IERC20(dai);
+        injector.setTokens(newManagedTokens);
+
+        (bool upkeepNeeded, ) = injector.checkUpkeep(bytes(""));
+        assertFalse(upkeepNeeded);
+
+        // false due to threshold not met
+        deal(bbaUsd, address(injector), 10);
+        deal(dai, address(injector), 10);
+
+        (upkeepNeeded, ) = injector.checkUpkeep(bytes(""));
+        assertFalse(upkeepNeeded);
+
+
+        // simulate Tokens being added at different times
+        deal(bbaUsd, address(injector), 200e19);
+        //deal(dai, address(injector), 200e19);
+
+        (upkeepNeeded, ) = injector.checkUpkeep(bytes(""));
+        // see requirement here: https://github.com/BalancerMaxis/veBalFeeInjector/pull/9#discussion_r1236993920
+        // Therefore we only want to run if both tokens are present.
+        assertFalse(upkeepNeeded);
+    }
+
+    function test_AdminPaysFeesTwiceInOneEpochAndBreaksSubsequentDistributions() public {
+        // a recent change allows the contract admin to pay fees twice per epoch. During the call to `payFees` a boolean switch
+        // is reversed. The goal of this boolean switch is to determine whether or not half or all of the contracts balance should be payed
+
+        // Exploit scenario: If the contract admin pays fees twice it is possible for veBAL holders to receive wrong amounts of protocolFees.
+        // by default half is set to true. Cycle is: Collect fees every 2 weeks, pay fees every week.
+
+        // Week   | BAL BALANCE | BB-A-USD BALANCE | FLAG   | BAL_SHOULD_PAY | BB-A-USD_SHOULD_PAY | REAL_BAL_PAY | REAL_BB-A-USD_PAY
+        // 1      | 100         | 100              | true   | 50             | 50                  | 50           | 50
+        // 2      | 50          | 50               | false  | 50             | 50                  | 50           | 50
+        // new fees come in
+        // 3      | 200         | 200              | true   | 100            | 100                 | 100          | 100
+        // 4      | 100         | 100              | false  | 100            | 100                 | 100          | 100
+
+        // Week   | BAL BALANCE | BB-A-USD BALANCE | FLAG   | BAL_SHOULD_PAY | BB-A-USD_SHOULD_PAY | REAL_BAL_PAY | REAL_BB-A-USD_PAY
+        // 1      | 100         | 100              | true   | 50             | 50                  | 50           | 50
+        // 2      | 50          | 50               | false  | 50             | 50                  | 50           | 50
+        // for whatever reason the admin pays fees again since a recent change allowed for it
+        // new fees come in
+        // 3      | 200         | 200              | false   | 100            | 100                 | 200          | 200
+        // 4      | 0           | 0                | true    | 100            | 100                 | 0            | 0
     }
 
 }
