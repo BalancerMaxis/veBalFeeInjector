@@ -84,7 +84,7 @@ contract veBalFeeInjector is ConfirmedOwner, Pausable {
     uint256 timeCursor = feeDistributor.getTimeCursor();
     require(LastRunTimeCurser < timeCursor, "Not ready");
 
-    int counter = 0;
+    uint counter = 0;
     for(uint i=0; i<managedTokens.length; i++){
       if (managedTokens[i].balanceOf(address(this)) > MinAmount * 10**(IERC20Metadata(address(managedTokens[i])).decimals())){
         counter++;
