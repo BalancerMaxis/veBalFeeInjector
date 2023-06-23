@@ -13,7 +13,7 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     injector.setTokens([bal, usd])
     assert bal.balanceOf(injector) == 0, "Non-0 BAL balance in collector"
     assert bal.balanceOf(injector) == 0, "Non-0 USD balance in collector"
-    assert injector.half(), "Half is false, should be true on first run"
+    assert injector.Half(), "Half is false, should be true on first run"
     (ready, foo) = injector.checkUpkeep(0)
     assert ready is False, "Injector shows ready with 0 balances"
     with brownie.reverts("Not ready"):
@@ -25,7 +25,7 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     injector.performUpkeep(0, {"from": keeper})
     assert bal.balanceOf(injector) == bal_amount/2, f"Injector has {bal.balanceOf(injector)} which isn't half of {bal_amount}"
     assert usd.balanceOf(injector) == usd_amount/2, f"Injector has {usd.balanceOf(injector)} which isn't half of {usd_amount}"
-    assert injector.half() is False, "Half was not flipped after payment"
+    assert injector.Half() is False, "Half was not flipped after payment"
     (ready, foo) = injector.checkUpkeep(0, )
     assert ready is False, "Injector shows ready directly after run"
     with brownie.reverts("Not ready"):
@@ -41,7 +41,7 @@ def test_two_weeks(injector, feeDistributor, owner, keeper, bal, usd, bal_amount
     injector.performUpkeep(0, {"from": keeper})
     assert bal.balanceOf(injector) == 0, f"Injector has {bal.balanceOf(injector)}.  Should be zero after 2 runs. "
     assert usd.balanceOf(injector) == 0, f"Injector has {usd.balanceOf(injector)}.  Should be zero after 2 runs."
-    assert injector.half() is True, "Half was not flipped after payment"
+    assert injector.Half() is True, "Half was not flipped after payment"
     bal.transfer(injector, bal_amount, {"from": owner})
     usd.transfer(injector, usd_amount, {"from": owner})
     (ready, foo) = injector.checkUpkeep(0)
